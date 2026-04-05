@@ -1,6 +1,6 @@
 package com.example.androidpractice.domain.model
 
-data class StockQuote(
+data class FavoriteStock(
     val symbol: String,
     val name: String,
     val exchange: String,
@@ -8,6 +8,5 @@ data class StockQuote(
     val price: Double?,
     val change: Double?,
     val changePercent: Double?,
-    val week52High: Double?,
-    val week52Low: Double?
+    val addedAt: Long
 )

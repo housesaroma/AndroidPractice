@@ -3,6 +3,7 @@ package com.example.androidpractice.data.remote
 import com.example.androidpractice.data.remote.dto.GlobalQuoteResponseDto
 import com.example.androidpractice.data.remote.dto.OverviewResponseDto
 import com.example.androidpractice.data.remote.dto.SymbolSearchResponseDto
+import com.example.androidpractice.data.remote.dto.TopMoversResponseDto
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -27,4 +28,10 @@ interface AlphaVantageApi {
         @Query("keywords") keywords: String,
         @Query("apikey") apiKey: String
     ): SymbolSearchResponseDto
+
+    @GET("query")
+    suspend fun getTopGainersLosers(
+        @Query("function") function: String = "TOP_GAINERS_LOSERS",
+        @Query("apikey") apiKey: String
+    ): TopMoversResponseDto
 }

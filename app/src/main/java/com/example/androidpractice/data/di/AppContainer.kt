@@ -1,11 +1,18 @@
 package com.example.androidpractice.data.di
 
 import android.content.Context
+import androidx.room.Room
 import com.chuckerteam.chucker.api.ChuckerInterceptor
 import com.example.androidpractice.BuildConfig
+import com.example.androidpractice.data.local.preferences.StockFiltersDataStoreRepository
+import com.example.androidpractice.data.local.room.AppDatabase
 import com.example.androidpractice.data.remote.AlphaVantageApi
+import com.example.androidpractice.data.repository.FavoriteStocksRepositoryImpl
 import com.example.androidpractice.data.repository.StocksRepositoryImpl
+import com.example.androidpractice.domain.repository.FavoriteStocksRepository
+import com.example.androidpractice.domain.repository.StockFiltersRepository
 import com.example.androidpractice.domain.repository.StocksRepository
+import com.example.androidpractice.ui.cache.SettingsBadgeCache
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -16,12 +23,46 @@ object AppContainer {
     @Volatile
     private var stocksRepository: StocksRepository? = null
 
+    @Volatile
+    private var stockFiltersRepository: StockFiltersRepository? = null
+
+    @Volatile
+    private var favoriteStocksRepository: FavoriteStocksRepository? = null
+
+    @Volatile
+    private var appDatabase: AppDatabase? = null
+
+    @Volatile
+    private var settingsBadgeCache: SettingsBadgeCache? = null
+
     fun provideStocksRepository(context: Context): StocksRepository {
         return stocksRepository ?: synchronized(this) {
             stocksRepository ?: StocksRepositoryImpl(
                 api = createApi(context),
                 apiKey = BuildConfig.ALPHA_VANTAGE_API_KEY
             ).also { stocksRepository = it }
+        }
+    }
+
+    fun provideStockFiltersRepository(context: Context): StockFiltersRepository {
+        return stockFiltersRepository ?: synchronized(this) {
+            stockFiltersRepository ?: StockFiltersDataStoreRepository(
+                context = context.applicationContext
+            ).also { stockFiltersRepository = it }
+        }
+    }
+
+    fun provideFavoriteStocksRepository(context: Context): FavoriteStocksRepository {
+        return favoriteStocksRepository ?: synchronized(this) {
+            favoriteStocksRepository ?: FavoriteStocksRepositoryImpl(
+                dao = provideDatabase(context).favoriteStocksDao()
+            ).also { favoriteStocksRepository = it }
+        }
+    }
+
+    fun provideSettingsBadgeCache(): SettingsBadgeCache {
+        return settingsBadgeCache ?: synchronized(this) {
+            settingsBadgeCache ?: SettingsBadgeCache().also { settingsBadgeCache = it }
         }
     }
 
@@ -32,6 +73,16 @@ object AppContainer {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(AlphaVantageApi::class.java)
+    }
+
+    private fun provideDatabase(context: Context): AppDatabase {
+        return appDatabase ?: synchronized(this) {
+            appDatabase ?: Room.databaseBuilder(
+                context.applicationContext,
+                AppDatabase::class.java,
+                "stocks_database"
+            ).build().also { appDatabase = it }
+        }
     }
 
     private fun createOkHttp(context: Context): OkHttpClient {

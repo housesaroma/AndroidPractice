@@ -7,10 +7,6 @@ class GetDefaultStocksUseCase(
     private val repository: StocksRepository
 ) {
     suspend operator fun invoke(): List<StockQuote> {
-        return repository.getStocksBySymbols(DEFAULT_SYMBOLS)
-    }
-
-    private companion object {
-        val DEFAULT_SYMBOLS = listOf("AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "TSLA", "JPM", "KO")
+        return repository.getDefaultStocks()
     }
 }
