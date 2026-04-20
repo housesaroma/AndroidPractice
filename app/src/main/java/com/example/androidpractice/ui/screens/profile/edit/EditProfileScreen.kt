@@ -54,7 +54,6 @@ import coil.compose.AsyncImage
 import com.example.androidpractice.ui.viewmodel.EditProfileUiState
 import java.io.File
 import java.util.Calendar
-import java.util.Locale
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,6 +64,7 @@ fun EditProfileScreen(
     onPositionChange: (String) -> Unit,
     onResumeUrlChange: (String) -> Unit,
     onFavoriteLessonTimeChange: (String) -> Unit,
+    onFavoriteLessonTimeSelected: (Int, Int) -> Unit,
     onAvatarUriChange: (String?) -> Unit,
     onDoneClick: () -> Unit,
     onStoragePermissionDenied: () -> Unit
@@ -193,7 +193,7 @@ fun EditProfileScreen(
                             showTimePicker(
                                 context = context,
                                 currentTime = uiState.favoriteLessonTime,
-                                onTimeSelected = onFavoriteLessonTimeChange
+                                onTimeSelected = onFavoriteLessonTimeSelected
                             )
                         }
                     ) {
@@ -352,7 +352,7 @@ private fun createTemporaryImageUri(context: Context): Uri? {
 private fun showTimePicker(
     context: Context,
     currentTime: String,
-    onTimeSelected: (String) -> Unit
+    onTimeSelected: (Int, Int) -> Unit
 ) {
     val now = Calendar.getInstance()
     val parsedTime = parseTimeOrNull(currentTime)
@@ -362,7 +362,7 @@ private fun showTimePicker(
     TimePickerDialog(
         context,
         { _, selectedHour, selectedMinute ->
-            onTimeSelected(String.format(Locale.US, "%02d:%02d", selectedHour, selectedMinute))
+            onTimeSelected(selectedHour, selectedMinute)
         },
         initialHour,
         initialMinute,

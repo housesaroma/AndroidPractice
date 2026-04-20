@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 data class ProfileUiState(
     val profile: UserProfile = UserProfile(),
@@ -120,6 +121,10 @@ class ProfileViewModel(
         }
     }
 
+    fun onFavoriteLessonTimeSelected(hour: Int, minute: Int) {
+        onFavoriteLessonTimeChange(formatFavoriteLessonTime(hour, minute))
+    }
+
     fun saveProfile(): Boolean {
         val state = _editUiState.value
         val normalizedFavoriteTime = state.favoriteLessonTime.trim()
@@ -210,5 +215,9 @@ class ProfileViewModel(
 
         private val FAVORITE_LESSON_TIME_REGEX = Regex("^(?:[01]\\d|2[0-3]):[0-5]\\d$")
         private const val DEFAULT_OWNER_NAME = "Profile owner"
+
+        private fun formatFavoriteLessonTime(hour: Int, minute: Int): String {
+            return String.format(Locale.US, "%02d:%02d", hour, minute)
+        }
     }
 }

@@ -22,6 +22,10 @@ import com.example.androidpractice.domain.usecase.RemoveFavoriteStockUseCase
 import com.example.androidpractice.domain.usecase.SaveStockFiltersUseCase
 import com.example.androidpractice.domain.usecase.SearchStocksUseCase
 import com.example.androidpractice.ui.cache.SettingsBadgeCache
+import com.example.androidpractice.ui.model.FavoriteStockItemUiModel
+import com.example.androidpractice.ui.model.StockChangeTrend
+import com.example.androidpractice.ui.model.StockDetailsUiModel
+import com.example.androidpractice.ui.model.StockListItemUiModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,9 +37,9 @@ import java.util.Locale
 
 data class StocksUiState(
     val isLoading: Boolean = false,
-    val stocks: List<StockQuote> = emptyList(),
+    val stocks: List<StockListItemUiModel> = emptyList(),
     val favoriteSymbols: Set<String> = emptySet(),
-    val activeFilters: StockFilters = StockFilters(),
+    val filtersSummaryText: String = "",
     val errorMessage: String? = null,
     val fromCache: Boolean = false
 )
@@ -43,7 +47,7 @@ data class StocksUiState(
 data class StockDetailsUiState(
     val symbol: String = "",
     val isLoading: Boolean = false,
-    val stock: StockDetails? = null,
+    val stock: StockDetailsUiModel? = null,
     val isFavorite: Boolean = false,
     val errorMessage: String? = null,
     val fromCache: Boolean = false
@@ -59,7 +63,7 @@ data class SettingsUiState(
 
 data class FavoritesUiState(
     val isLoading: Boolean = true,
-    val favorites: List<FavoriteStock> = emptyList()
+    val favorites: List<FavoriteStockItemUiModel> = emptyList()
 )
 
 class StocksViewModel(
@@ -78,6 +82,8 @@ class StocksViewModel(
 
     private val remoteStocksCache = mutableMapOf<String, List<StockQuote>>()
     private val detailCache = mutableMapOf<String, StockDetails>()
+    private var currentVisibleStocks: List<StockQuote> = emptyList()
+    private var currentDetailsStock: StockDetails? = null
     private var currentFilters = StockFilters()
 
     private val _stocksUiState = MutableStateFlow(StocksUiState(isLoading = true))
@@ -166,10 +172,11 @@ class StocksViewModel(
 
         val cached = detailCache[normalizedSymbol]
         if (cached != null && !forceRefresh) {
+            currentDetailsStock = cached
             _stockDetailsUiState.value = StockDetailsUiState(
                 symbol = normalizedSymbol,
                 isLoading = false,
-                stock = cached,
+                stock = cached.toStockDetailsUiModel(),
                 isFavorite = _stocksUiState.value.favoriteSymbols.contains(normalizedSymbol),
                 errorMessage = null,
                 fromCache = true
@@ -177,10 +184,11 @@ class StocksViewModel(
             return
         }
 
+        currentDetailsStock = cached
         _stockDetailsUiState.value = StockDetailsUiState(
             symbol = normalizedSymbol,
             isLoading = true,
-            stock = cached,
+            stock = cached?.toStockDetailsUiModel(),
             isFavorite = _stocksUiState.value.favoriteSymbols.contains(normalizedSymbol),
             errorMessage = null,
             fromCache = cached != null
@@ -191,19 +199,21 @@ class StocksViewModel(
                 getStockDetailsUseCase(normalizedSymbol)
             }.onSuccess { details ->
                 detailCache[normalizedSymbol] = details
+                currentDetailsStock = details
                 _stockDetailsUiState.value = StockDetailsUiState(
                     symbol = normalizedSymbol,
                     isLoading = false,
-                    stock = details,
+                    stock = details.toStockDetailsUiModel(),
                     isFavorite = _stocksUiState.value.favoriteSymbols.contains(normalizedSymbol),
                     errorMessage = null,
                     fromCache = false
                 )
             }.onFailure { throwable ->
+                currentDetailsStock = cached
                 _stockDetailsUiState.value = StockDetailsUiState(
                     symbol = normalizedSymbol,
                     isLoading = false,
-                    stock = cached,
+                    stock = cached?.toStockDetailsUiModel(),
                     isFavorite = _stocksUiState.value.favoriteSymbols.contains(normalizedSymbol),
                     errorMessage = throwable.toReadableMessage(),
                     fromCache = cached != null
@@ -212,19 +222,23 @@ class StocksViewModel(
         }
     }
 
-    fun toggleFavoriteFromQuote(stock: StockQuote) {
-        val isFavorite = _stocksUiState.value.favoriteSymbols.contains(stock.symbol)
+    fun toggleFavoriteFromQuote(symbol: String) {
+        val normalizedSymbol = symbol.trim().uppercase(Locale.US)
+        val isFavorite = _stocksUiState.value.favoriteSymbols.contains(normalizedSymbol)
         viewModelScope.launch(ioDispatcher) {
             if (isFavorite) {
-                removeFavoriteStockUseCase(stock.symbol)
+                removeFavoriteStockUseCase(normalizedSymbol)
             } else {
-                addFavoriteStockUseCase(stock.toFavoriteStock())
+                val target = currentVisibleStocks.firstOrNull {
+                    it.symbol.equals(normalizedSymbol, ignoreCase = true)
+                } ?: return@launch
+                addFavoriteStockUseCase(target.toFavoriteStock())
             }
         }
     }
 
     fun toggleFavoriteFromDetails() {
-        val details = _stockDetailsUiState.value.stock ?: return
+        val details = currentDetailsStock ?: return
         val symbol = details.symbol
         val isFavorite = _stocksUiState.value.favoriteSymbols.contains(symbol)
 
@@ -251,7 +265,7 @@ class StocksViewModel(
 
                 _settingsUiState.value = filters.toSettingsUiState()
                 _stocksUiState.update {
-                    it.copy(activeFilters = filters)
+                    it.copy(filtersSummaryText = filters.toSummaryText())
                 }
 
                 loadStocks(filters = filters, forceRefresh = false)
@@ -264,7 +278,7 @@ class StocksViewModel(
             observeFavoriteStocksUseCase().collect { favorites ->
                 _favoritesUiState.value = FavoritesUiState(
                     isLoading = false,
-                    favorites = favorites
+                    favorites = favorites.map(::toFavoriteStockItemUiModel)
                 )
             }
         }
@@ -274,7 +288,10 @@ class StocksViewModel(
         viewModelScope.launch {
             observeFavoriteSymbolsUseCase().collect { symbols ->
                 _stocksUiState.update { state ->
-                    state.copy(favoriteSymbols = symbols)
+                    state.copy(
+                        favoriteSymbols = symbols,
+                        stocks = currentVisibleStocks.toStockListItemUiModels(symbols)
+                    )
                 }
                 _stockDetailsUiState.update { state ->
                     state.copy(isFavorite = symbols.contains(state.symbol))
@@ -290,11 +307,13 @@ class StocksViewModel(
         val shouldUseCacheOnly = cachedRemote != null && !forceRefresh
 
         if (shouldUseCacheOnly && filters.rangePoint == null) {
+            val visibleStocks = applyLocalFilters(cachedRemote, filters)
+            currentVisibleStocks = visibleStocks
             _stocksUiState.update {
                 it.copy(
                     isLoading = false,
-                    stocks = applyLocalFilters(cachedRemote, filters),
-                    activeFilters = filters,
+                    stocks = visibleStocks.toStockListItemUiModels(it.favoriteSymbols),
+                    filtersSummaryText = filters.toSummaryText(),
                     errorMessage = null,
                     fromCache = true
                 )
@@ -302,11 +321,18 @@ class StocksViewModel(
             return
         }
 
+        val loadingStocks = if (cachedRemote != null) {
+            applyLocalFilters(cachedRemote, filters)
+        } else {
+            currentVisibleStocks
+        }
+        currentVisibleStocks = loadingStocks
+
         _stocksUiState.update {
             it.copy(
                 isLoading = true,
-                stocks = if (cachedRemote != null) applyLocalFilters(cachedRemote, filters) else it.stocks,
-                activeFilters = filters,
+                stocks = loadingStocks.toStockListItemUiModels(it.favoriteSymbols),
+                filtersSummaryText = filters.toSummaryText(),
                 errorMessage = null,
                 fromCache = cachedRemote != null
             )
@@ -330,21 +356,29 @@ class StocksViewModel(
                     remoteStocksCache[cacheKey] = remoteStocks
                 }
                 val enrichedStocks = enrichWithRangeDataIfNeeded(remoteStocks, filters)
+                val visibleStocks = applyLocalFilters(enrichedStocks, filters)
+                currentVisibleStocks = visibleStocks
                 _stocksUiState.update {
                     it.copy(
                         isLoading = false,
-                        stocks = applyLocalFilters(enrichedStocks, filters),
-                        activeFilters = filters,
+                        stocks = visibleStocks.toStockListItemUiModels(it.favoriteSymbols),
+                        filtersSummaryText = filters.toSummaryText(),
                         errorMessage = null,
                         fromCache = shouldUseCacheOnly
                     )
                 }
             }.onFailure { throwable ->
+                val visibleStocks = if (cachedRemote != null) {
+                    applyLocalFilters(cachedRemote, filters)
+                } else {
+                    currentVisibleStocks
+                }
+                currentVisibleStocks = visibleStocks
                 _stocksUiState.update {
                     it.copy(
                         isLoading = false,
-                        stocks = if (cachedRemote != null) applyLocalFilters(cachedRemote, filters) else it.stocks,
-                        activeFilters = filters,
+                        stocks = visibleStocks.toStockListItemUiModels(it.favoriteSymbols),
+                        filtersSummaryText = filters.toSummaryText(),
                         errorMessage = throwable.toReadableMessage(),
                         fromCache = cachedRemote != null
                     )
@@ -451,6 +485,126 @@ class StocksViewModel(
             value.toLong().toString()
         } else {
             value.toString()
+        }
+    }
+
+    private fun StockFilters.toSummaryText(): String {
+        val queryPart = searchQuery.takeIf { it.isNotBlank() }?.let { "Query: $it" }
+        val rangePart = rangePoint?.let { "52w point: ${formatFilterPoint(it)}" }
+        val risingPart = if (onlyRising) "Only rising" else null
+
+        return listOfNotNull(queryPart, rangePart, risingPart).joinToString(separator = "  |  ")
+    }
+
+    private fun List<StockQuote>.toStockListItemUiModels(
+        favoriteSymbols: Set<String>
+    ): List<StockListItemUiModel> {
+        return map { stock ->
+            toStockListItemUiModel(
+                stock = stock,
+                isFavorite = favoriteSymbols.contains(stock.symbol.uppercase(Locale.US))
+            )
+        }
+    }
+
+    private fun toStockListItemUiModel(
+        stock: StockQuote,
+        isFavorite: Boolean
+    ): StockListItemUiModel {
+        return StockListItemUiModel(
+            symbol = stock.symbol,
+            name = stock.name,
+            exchange = stock.exchange,
+            priceText = formatPrice(stock.price, stock.currency),
+            changeText = formatChange(stock.change, stock.changePercent),
+            changeTrend = toChangeTrend(stock.change),
+            isFavorite = isFavorite
+        )
+    }
+
+    private fun StockDetails.toStockDetailsUiModel(): StockDetailsUiModel {
+        return StockDetailsUiModel(
+            symbol = symbol,
+            name = name,
+            exchangeCurrencyText = "$exchange • $currency",
+            priceText = formatPrice(price, currency),
+            changeText = formatChange(change, changePercent),
+            changeTrend = toChangeTrend(change),
+            dayRangeText = formatRange(dayLow, dayHigh),
+            week52RangeText = formatRange(week52Low, week52High),
+            volumeText = formatNumber(volume),
+            marketCapText = formatMarketCap(marketCap),
+            peRatioText = formatDecimal(peRatio),
+            epsText = formatDecimal(eps),
+            dividendYieldText = formatPercent(dividendYield),
+            headquarters = headquarters,
+            sector = sector,
+            industry = industry,
+            description = description
+        )
+    }
+
+    private fun toFavoriteStockItemUiModel(stock: FavoriteStock): FavoriteStockItemUiModel {
+        return FavoriteStockItemUiModel(
+            symbol = stock.symbol,
+            name = stock.name,
+            exchange = stock.exchange,
+            priceText = formatPrice(stock.price, stock.currency),
+            changeText = formatChange(stock.change, stock.changePercent),
+            changeTrend = toChangeTrend(stock.change)
+        )
+    }
+
+    private fun toChangeTrend(change: Double?): StockChangeTrend {
+        return when {
+            change == null || change == 0.0 -> StockChangeTrend.NEUTRAL
+            change > 0 -> StockChangeTrend.UP
+            else -> StockChangeTrend.DOWN
+        }
+    }
+
+    private fun formatPrice(price: Double?, currency: String): String {
+        if (price == null) return "--"
+        return String.format(Locale.US, "%.2f %s", price, currency)
+    }
+
+    private fun formatChange(change: Double?, changePercent: Double?): String {
+        if (change == null || changePercent == null) return "--"
+        return String.format(Locale.US, "%+.2f (%.2f%%)", change, changePercent)
+    }
+
+    private fun formatDecimal(value: Double?): String {
+        return value?.let { String.format(Locale.US, "%.2f", it) } ?: "--"
+    }
+
+    private fun formatRange(low: Double?, high: Double?): String {
+        if (low == null || high == null) return "--"
+        return String.format(Locale.US, "%.2f - %.2f", low, high)
+    }
+
+    private fun formatNumber(value: Long?): String {
+        return value?.let { String.format(Locale.US, "%,d", it) } ?: "--"
+    }
+
+    private fun formatMarketCap(value: Long?): String {
+        if (value == null) return "--"
+        return when {
+            value >= 1_000_000_000_000L -> String.format(Locale.US, "%.2f T", value / 1_000_000_000_000.0)
+            value >= 1_000_000_000L -> String.format(Locale.US, "%.2f B", value / 1_000_000_000.0)
+            value >= 1_000_000L -> String.format(Locale.US, "%.2f M", value / 1_000_000.0)
+            else -> value.toString()
+        }
+    }
+
+    private fun formatPercent(value: Double?): String {
+        return value?.let { String.format(Locale.US, "%.2f%%", it) } ?: "--"
+    }
+
+    private fun formatFilterPoint(value: Double): String {
+        return if (value % 1.0 == 0.0) {
+            value.toLong().toString()
+        } else {
+            String.format(Locale.US, "%.2f", value)
         }
     }
 

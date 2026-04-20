@@ -34,10 +34,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.androidpractice.domain.model.StockFilters
-import com.example.androidpractice.domain.model.StockQuote
+import com.example.androidpractice.ui.model.StockChangeTrend
+import com.example.androidpractice.ui.model.StockListItemUiModel
 import com.example.androidpractice.ui.viewmodel.StocksUiState
-import java.util.Locale
 
 private val UpGreen = Color(0xFF137333)
 private val DownRed = Color(0xFFB3261E)
@@ -48,12 +47,12 @@ fun StockListScreen(
     uiState: StocksUiState,
     onRetry: () -> Unit,
     onStockClick: (String) -> Unit,
-    onToggleFavorite: (StockQuote) -> Unit
+    onToggleFavorite: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         CenterAlignedTopAppBar(title = { Text(text = "Alpha Vantage") })
 
-        FiltersSummary(filters = uiState.activeFilters)
+        FiltersSummary(summary = uiState.filtersSummaryText)
 
         if (uiState.isLoading && uiState.stocks.isNotEmpty()) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -92,9 +91,8 @@ fun StockListScreen(
                     items(uiState.stocks, key = { it.symbol }) { stock ->
                         StockRow(
                             stock = stock,
-                            isFavorite = uiState.favoriteSymbols.contains(stock.symbol),
                             onClick = { onStockClick(stock.symbol) },
-                            onFavoriteClick = { onToggleFavorite(stock) }
+                            onFavoriteClick = { onToggleFavorite(stock.symbol) }
                         )
                     }
                 }
@@ -104,21 +102,7 @@ fun StockListScreen(
 }
 
 @Composable
-private fun FiltersSummary(filters: StockFilters) {
-    val summary = buildString {
-        if (filters.searchQuery.isNotBlank()) {
-            append("Query: ${filters.searchQuery}")
-        }
-        if (filters.rangePoint != null) {
-            if (isNotEmpty()) append("  |  ")
-            append("52w point: ${formatNumber(filters.rangePoint)}")
-        }
-        if (filters.onlyRising) {
-            if (isNotEmpty()) append("  |  ")
-            append("Only rising")
-        }
-    }
-
+private fun FiltersSummary(summary: String) {
     if (summary.isNotBlank()) {
         Text(
             text = summary,
@@ -131,14 +115,13 @@ private fun FiltersSummary(filters: StockFilters) {
 
 @Composable
 private fun StockRow(
-    stock: StockQuote,
-    isFavorite: Boolean,
+    stock: StockListItemUiModel,
     onClick: () -> Unit,
     onFavoriteClick: () -> Unit
 ) {
     val changeColor = when {
-        (stock.change ?: 0.0) > 0 -> UpGreen
-        (stock.change ?: 0.0) < 0 -> DownRed
+        stock.changeTrend == StockChangeTrend.UP -> UpGreen
+        stock.changeTrend == StockChangeTrend.DOWN -> DownRed
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
@@ -182,21 +165,21 @@ private fun StockRow(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = formatPrice(stock.price, stock.currency),
+                    text = stock.priceText,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = formatChange(stock.change, stock.changePercent),
+                    text = stock.changeText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = changeColor
                 )
                 IconButton(onClick = onFavoriteClick) {
                     Icon(
-                        imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                        contentDescription = if (isFavorite) "Remove favorite" else "Add favorite",
-                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        imageVector = if (stock.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                        contentDescription = if (stock.isFavorite) "Remove favorite" else "Add favorite",
+                        tint = if (stock.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -274,23 +257,5 @@ private fun EmptyState(modifier: Modifier = Modifier) {
             text = "No stocks match current filters",
             style = MaterialTheme.typography.bodyLarge
         )
-    }
-}
-
-private fun formatPrice(price: Double?, currency: String): String {
-    if (price == null) return "--"
-    return String.format(Locale.US, "%.2f %s", price, currency)
-}
-
-private fun formatChange(change: Double?, changePercent: Double?): String {
-    if (change == null || changePercent == null) return "--"
-    return String.format(Locale.US, "%+.2f (%.2f%%)", change, changePercent)
-}
-
-private fun formatNumber(value: Double): String {
-    return if (value % 1.0 == 0.0) {
-        value.toLong().toString()
-    } else {
-        String.format(Locale.US, "%.2f", value)
     }
 }
