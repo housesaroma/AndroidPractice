@@ -1,9 +1,9 @@
 package com.example.androidpractice.ui.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +27,7 @@ sealed class BottomNavItem(
     data object Stocks : BottomNavItem(
         screen = Screen.Stocks,
         label = "Stocks",
-        icon = { Icon(imageVector = Icons.Filled.ShowChart, contentDescription = null) }
+        icon = { Icon(imageVector = Icons.AutoMirrored.Filled.ShowChart, contentDescription = null) }
     )
 
     data object Portfolio : BottomNavItem(
