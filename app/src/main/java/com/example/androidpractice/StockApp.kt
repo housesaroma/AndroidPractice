@@ -22,15 +22,16 @@ import com.example.androidpractice.ui.navigation.Screen
 import com.example.androidpractice.ui.screens.detail.StockDetailScreen
 import com.example.androidpractice.ui.screens.list.StockListScreen
 import com.example.androidpractice.ui.screens.placeholder.PlaceholderScreen
-import com.example.androidpractice.ui.viewmodel.StocksViewModel
+import com.example.androidpractice.ui.viewmodel.PortfolioViewModel
+import com.example.androidpractice.ui.viewmodel.SettingsViewModel
+import com.example.androidpractice.ui.viewmodel.StockDetailViewModel
+import com.example.androidpractice.ui.viewmodel.StockListViewModel
 
 @Composable
 fun StockApp() {
     val navController = rememberNavController()
-    val viewModel: StocksViewModel = viewModel()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val stocks by viewModel.stocks.collectAsState()
 
     val bottomItems = listOf(
         BottomNavItem.Stocks,
@@ -71,6 +72,8 @@ fun StockApp() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Stocks.route) {
+                val stockListViewModel: StockListViewModel = viewModel()
+                val stocks by stockListViewModel.stocks.collectAsState()
                 StockListScreen(
                     stocks = stocks,
                     onStockClick = { symbol ->
@@ -79,23 +82,26 @@ fun StockApp() {
                 )
             }
             composable(Screen.Portfolio.route) {
+                val portfolioViewModel: PortfolioViewModel = viewModel()
                 PlaceholderScreen(
-                    title = "Portfolio",
-                    description = "Placeholder for the next practices."
+                    title = portfolioViewModel.title,
+                    description = portfolioViewModel.description
                 )
             }
             composable(Screen.Settings.route) {
+                val settingsViewModel: SettingsViewModel = viewModel()
                 PlaceholderScreen(
-                    title = "Settings",
-                    description = "Placeholder for the next practices."
+                    title = settingsViewModel.title,
+                    description = settingsViewModel.description
                 )
             }
             composable(
                 route = Screen.StockDetail.route,
                 arguments = listOf(navArgument(Screen.StockDetail.ARG_SYMBOL) { type = NavType.StringType })
             ) { backStackEntry ->
+                val stockDetailViewModel: StockDetailViewModel = viewModel()
                 val symbol = backStackEntry.arguments?.getString(Screen.StockDetail.ARG_SYMBOL)
-                val stock = symbol?.let { viewModel.getStockDetail(it) }
+                val stock = symbol?.let { stockDetailViewModel.getStockDetail(it) }
                 if (stock == null) {
                     PlaceholderScreen(
                         title = "Stock not found",
