@@ -25,8 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.androidpractice.data.model.Stock
-import java.util.Locale
+import com.example.androidpractice.ui.model.StockListItemUiModel
 
 private val UpGreen = Color(0xFF137333)
 private val DownRed = Color(0xFFB3261E)
@@ -34,8 +33,8 @@ private val DownRed = Color(0xFFB3261E)
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun StockListScreen(
-    stocks: List<Stock>,
-    onStockClick: (Stock) -> Unit
+    stocks: List<StockListItemUiModel>,
+    onStockClick: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         CenterAlignedTopAppBar(title = { Text(text = "Alpha Vantage") })
@@ -45,7 +44,7 @@ fun StockListScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)
         ) {
             items(stocks, key = { it.symbol }) { stock ->
-                StockRow(stock = stock, onClick = { onStockClick(stock) })
+                StockRow(stock = stock, onClick = { onStockClick(stock.symbol) })
             }
         }
     }
@@ -53,10 +52,10 @@ fun StockListScreen(
 
 @Composable
 private fun StockRow(
-    stock: Stock,
+    stock: StockListItemUiModel,
     onClick: () -> Unit
 ) {
-    val changeColor = if (stock.change >= 0) UpGreen else DownRed
+    val changeColor = if (stock.isPositiveChange) UpGreen else DownRed
 
     Card(
         modifier = Modifier
@@ -98,25 +97,17 @@ private fun StockRow(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = formatPrice(stock.price, stock.currency),
+                    text = stock.priceText,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = formatChange(stock.change, stock.changePercent),
+                    text = stock.changeText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = changeColor
                 )
             }
         }
     }
-}
-
-private fun formatPrice(price: Double, currency: String): String {
-    return String.format(Locale.US, "%.2f %s", price, currency)
-}
-
-private fun formatChange(change: Double, changePercent: Double): String {
-    return String.format(Locale.US, "%+.2f (%.2f%%)", change, changePercent)
 }

@@ -73,8 +73,8 @@ fun StockApp() {
             composable(Screen.Stocks.route) {
                 StockListScreen(
                     stocks = stocks,
-                    onStockClick = { stock ->
-                        navController.navigate(Screen.StockDetail.createRoute(stock.symbol))
+                    onStockClick = { symbol ->
+                        navController.navigate(Screen.StockDetail.createRoute(symbol))
                     }
                 )
             }
@@ -95,7 +95,7 @@ fun StockApp() {
                 arguments = listOf(navArgument(Screen.StockDetail.ARG_SYMBOL) { type = NavType.StringType })
             ) { backStackEntry ->
                 val symbol = backStackEntry.arguments?.getString(Screen.StockDetail.ARG_SYMBOL)
-                val stock = symbol?.let { viewModel.getStock(it) }
+                val stock = symbol?.let { viewModel.getStockDetail(it) }
                 if (stock == null) {
                     PlaceholderScreen(
                         title = "Stock not found",
