@@ -1,5 +1,10 @@
 package com.example.androidpractice
 
+import android.app.DownloadManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Badge
@@ -13,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -28,30 +34,49 @@ import com.example.androidpractice.ui.screens.detail.StockDetailScreen
 import com.example.androidpractice.ui.screens.favorites.FavoritesScreen
 import com.example.androidpractice.ui.screens.list.StockListScreen
 import com.example.androidpractice.ui.screens.placeholder.PlaceholderScreen
+import com.example.androidpractice.ui.screens.profile.ProfileScreen
+import com.example.androidpractice.ui.screens.profile.edit.EditProfileScreen
 import com.example.androidpractice.ui.screens.settings.SettingsScreen
+import com.example.androidpractice.ui.viewmodel.ProfileEvent
+import com.example.androidpractice.ui.viewmodel.ProfileViewModel
 import com.example.androidpractice.ui.viewmodel.StockDetailsUiState
 import com.example.androidpractice.ui.viewmodel.StocksViewModel
 
 @Composable
 fun StockApp() {
     val navController = rememberNavController()
-    val viewModel: StocksViewModel = viewModel(factory = StocksViewModel.factory())
+    val stocksViewModel: StocksViewModel = viewModel(factory = StocksViewModel.factory())
+    val profileViewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.factory())
+    val context = LocalContext.current
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val stocksUiState by viewModel.stocksUiState.collectAsStateWithLifecycle()
-    val stockDetailsUiState by viewModel.stockDetailsUiState.collectAsStateWithLifecycle()
-    val settingsUiState by viewModel.settingsUiState.collectAsStateWithLifecycle()
-    val favoritesUiState by viewModel.favoritesUiState.collectAsStateWithLifecycle()
-    val showSettingsBadge by viewModel.showSettingsBadge.collectAsStateWithLifecycle()
+    val stocksUiState by stocksViewModel.stocksUiState.collectAsStateWithLifecycle()
+    val stockDetailsUiState by stocksViewModel.stockDetailsUiState.collectAsStateWithLifecycle()
+    val settingsUiState by stocksViewModel.settingsUiState.collectAsStateWithLifecycle()
+    val favoritesUiState by stocksViewModel.favoritesUiState.collectAsStateWithLifecycle()
+    val showSettingsBadge by stocksViewModel.showSettingsBadge.collectAsStateWithLifecycle()
+
+    val profileUiState by profileViewModel.profileUiState.collectAsStateWithLifecycle()
+    val editProfileUiState by profileViewModel.editUiState.collectAsStateWithLifecycle()
 
     val bottomItems = listOf(
         BottomNavItem.Stocks,
-        BottomNavItem.Portfolio,
-        BottomNavItem.Settings
+        BottomNavItem.Favorites,
+        BottomNavItem.Settings,
+        BottomNavItem.Profile
     )
     val showBottomBar = bottomItems.any { it.screen.route == currentRoute }
+
+    LaunchedEffect(profileViewModel) {
+        profileViewModel.events.collect { event ->
+            when (event) {
+                is ProfileEvent.OpenDownloadedFile -> openDownloadedFile(context, event.uri)
+                is ProfileEvent.ShowMessage -> Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -95,30 +120,30 @@ fun StockApp() {
             composable(Screen.Stocks.route) {
                 StockListScreen(
                     uiState = stocksUiState,
-                    onRetry = viewModel::retryStocks,
+                    onRetry = stocksViewModel::retryStocks,
                     onStockClick = { symbol ->
                         navController.navigate(Screen.StockDetail.createRoute(symbol))
                     },
-                    onToggleFavorite = viewModel::toggleFavoriteFromQuote
+                    onToggleFavorite = stocksViewModel::toggleFavoriteFromQuote
                 )
             }
 
-            composable(Screen.Portfolio.route) {
+            composable(Screen.Favorites.route) {
                 FavoritesScreen(
                     uiState = favoritesUiState,
-                    onRemoveFavorite = viewModel::removeFavorite
+                    onRemoveFavorite = stocksViewModel::removeFavorite
                 )
             }
 
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     uiState = settingsUiState,
-                    onQueryChange = viewModel::onSettingsSearchQueryChange,
-                    onRangePointChange = viewModel::onSettingsRangePointChange,
-                    onOnlyRisingChange = viewModel::onSettingsOnlyRisingChange,
-                    onResetFilters = viewModel::resetFilters,
+                    onQueryChange = stocksViewModel::onSettingsSearchQueryChange,
+                    onRangePointChange = stocksViewModel::onSettingsRangePointChange,
+                    onOnlyRisingChange = stocksViewModel::onSettingsOnlyRisingChange,
+                    onResetFilters = stocksViewModel::resetFilters,
                     onDone = {
-                        val success = viewModel.onSettingsDone()
+                        val success = stocksViewModel.onSettingsDone()
                         if (success) {
                             navController.navigate(Screen.Stocks.route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
@@ -129,6 +154,35 @@ fun StockApp() {
                             }
                         }
                     }
+                )
+            }
+
+            composable(Screen.Profile.route) {
+                ProfileScreen(
+                    uiState = profileUiState,
+                    onEditClick = { navController.navigate(Screen.EditProfile.route) },
+                    onResumeClick = profileViewModel::downloadAndOpenResume
+                )
+            }
+
+            composable(Screen.EditProfile.route) {
+                LaunchedEffect(Unit) {
+                    profileViewModel.startEditing()
+                }
+                EditProfileScreen(
+                    uiState = editProfileUiState,
+                    onBackClick = { navController.popBackStack() },
+                    onFullNameChange = profileViewModel::onFullNameChange,
+                    onPositionChange = profileViewModel::onPositionChange,
+                    onResumeUrlChange = profileViewModel::onResumeUrlChange,
+                    onAvatarUriChange = profileViewModel::onAvatarUriChange,
+                    onDoneClick = {
+                        val saved = profileViewModel.saveProfile()
+                        if (saved) {
+                            navController.popBackStack()
+                        }
+                    },
+                    onStoragePermissionDenied = { navController.popBackStack() }
                 )
             }
 
@@ -144,7 +198,7 @@ fun StockApp() {
                     )
                 } else {
                     LaunchedEffect(symbol) {
-                        viewModel.loadStockDetails(symbol = symbol)
+                        stocksViewModel.loadStockDetails(symbol = symbol)
                     }
                     val detailUiState = if (
                         stockDetailsUiState.symbol != symbol &&
@@ -157,11 +211,31 @@ fun StockApp() {
                     StockDetailScreen(
                         uiState = detailUiState,
                         onBack = { navController.popBackStack() },
-                        onRetry = viewModel::retryStockDetails,
-                        onToggleFavorite = viewModel::toggleFavoriteFromDetails
+                        onRetry = stocksViewModel::retryStockDetails,
+                        onToggleFavorite = stocksViewModel::toggleFavoriteFromDetails
                     )
                 }
             }
         }
+    }
+}
+
+private fun openDownloadedFile(context: Context, uriString: String) {
+    val uri = Uri.parse(uriString)
+    val mimeType = context.contentResolver.getType(uri) ?: "*/*"
+
+    val openFileIntent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, mimeType)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    runCatching {
+        context.startActivity(openFileIntent)
+    }.onFailure {
+        val downloadsIntent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching { context.startActivity(downloadsIntent) }
     }
 }

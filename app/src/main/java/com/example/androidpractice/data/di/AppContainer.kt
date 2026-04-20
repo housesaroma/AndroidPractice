@@ -4,14 +4,18 @@ import android.content.Context
 import androidx.room.Room
 import com.chuckerteam.chucker.api.ChuckerInterceptor
 import com.example.androidpractice.BuildConfig
+import com.example.androidpractice.data.files.DownloadManagerResumeDownloader
 import com.example.androidpractice.data.local.preferences.StockFiltersDataStoreRepository
+import com.example.androidpractice.data.local.preferences.UserProfileDataStoreRepository
 import com.example.androidpractice.data.local.room.AppDatabase
 import com.example.androidpractice.data.remote.AlphaVantageApi
 import com.example.androidpractice.data.repository.FavoriteStocksRepositoryImpl
 import com.example.androidpractice.data.repository.StocksRepositoryImpl
 import com.example.androidpractice.domain.repository.FavoriteStocksRepository
+import com.example.androidpractice.domain.repository.ResumeDownloader
 import com.example.androidpractice.domain.repository.StockFiltersRepository
 import com.example.androidpractice.domain.repository.StocksRepository
+import com.example.androidpractice.domain.repository.UserProfileRepository
 import com.example.androidpractice.ui.cache.SettingsBadgeCache
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -34,6 +38,12 @@ object AppContainer {
 
     @Volatile
     private var settingsBadgeCache: SettingsBadgeCache? = null
+
+    @Volatile
+    private var userProfileRepository: UserProfileRepository? = null
+
+    @Volatile
+    private var resumeDownloader: ResumeDownloader? = null
 
     fun provideStocksRepository(context: Context): StocksRepository {
         return stocksRepository ?: synchronized(this) {
@@ -63,6 +73,22 @@ object AppContainer {
     fun provideSettingsBadgeCache(): SettingsBadgeCache {
         return settingsBadgeCache ?: synchronized(this) {
             settingsBadgeCache ?: SettingsBadgeCache().also { settingsBadgeCache = it }
+        }
+    }
+
+    fun provideUserProfileRepository(context: Context): UserProfileRepository {
+        return userProfileRepository ?: synchronized(this) {
+            userProfileRepository ?: UserProfileDataStoreRepository(
+                context = context.applicationContext
+            ).also { userProfileRepository = it }
+        }
+    }
+
+    fun provideResumeDownloader(context: Context): ResumeDownloader {
+        return resumeDownloader ?: synchronized(this) {
+            resumeDownloader ?: DownloadManagerResumeDownloader(
+                context = context.applicationContext
+            ).also { resumeDownloader = it }
         }
     }
 

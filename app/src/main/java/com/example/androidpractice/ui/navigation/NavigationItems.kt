@@ -3,13 +3,16 @@ package com.example.androidpractice.ui.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Screen(val route: String) {
     data object Stocks : Screen("stocks")
-    data object Portfolio : Screen("portfolio")
+    data object Favorites : Screen("favorites")
     data object Settings : Screen("settings")
+    data object Profile : Screen("profile")
+    data object EditProfile : Screen("profile/edit")
 
     data object StockDetail : Screen("stock/{symbol}") {
         const val ARG_SYMBOL = "symbol"
@@ -27,14 +30,19 @@ enum class BottomNavItem(
         label = "Stocks",
         icon = Icons.AutoMirrored.Filled.ShowChart
     ),
-    Portfolio(
-        screen = Screen.Portfolio,
-        label = "Portfolio",
+    Favorites(
+        screen = Screen.Favorites,
+        label = "Favorites",
         icon = Icons.Filled.AccountBalanceWallet
     ),
     Settings(
         screen = Screen.Settings,
         label = "Settings",
         icon = Icons.Filled.Settings
+    ),
+    Profile(
+        screen = Screen.Profile,
+        label = "Profile",
+        icon = Icons.Filled.Person
     )
 }
