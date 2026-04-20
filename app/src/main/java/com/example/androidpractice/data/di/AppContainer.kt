@@ -16,6 +16,7 @@ import com.example.androidpractice.domain.repository.ResumeDownloader
 import com.example.androidpractice.domain.repository.StockFiltersRepository
 import com.example.androidpractice.domain.repository.StocksRepository
 import com.example.androidpractice.domain.repository.UserProfileRepository
+import com.example.androidpractice.notifications.FavoriteLessonReminderScheduler
 import com.example.androidpractice.ui.cache.SettingsBadgeCache
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -44,6 +45,9 @@ object AppContainer {
 
     @Volatile
     private var resumeDownloader: ResumeDownloader? = null
+
+    @Volatile
+    private var favoriteLessonReminderScheduler: FavoriteLessonReminderScheduler? = null
 
     fun provideStocksRepository(context: Context): StocksRepository {
         return stocksRepository ?: synchronized(this) {
@@ -89,6 +93,14 @@ object AppContainer {
             resumeDownloader ?: DownloadManagerResumeDownloader(
                 context = context.applicationContext
             ).also { resumeDownloader = it }
+        }
+    }
+
+    fun provideFavoriteLessonReminderScheduler(context: Context): FavoriteLessonReminderScheduler {
+        return favoriteLessonReminderScheduler ?: synchronized(this) {
+            favoriteLessonReminderScheduler ?: FavoriteLessonReminderScheduler(
+                context = context.applicationContext
+            ).also { favoriteLessonReminderScheduler = it }
         }
     }
 

@@ -27,6 +27,7 @@ class UserProfileDataStoreRepository(
             preferences[FULL_NAME_KEY] = profile.fullName
             preferences[RESUME_URL_KEY] = profile.resumeUrl
             preferences[POSITION_KEY] = profile.position
+            preferences[FAVORITE_LESSON_TIME_KEY] = profile.favoriteLessonTime
 
             if (profile.avatarUri.isNullOrBlank()) {
                 preferences.remove(AVATAR_URI_KEY)
@@ -41,7 +42,8 @@ class UserProfileDataStoreRepository(
             fullName = this[FULL_NAME_KEY].orEmpty(),
             avatarUri = this[AVATAR_URI_KEY],
             resumeUrl = this[RESUME_URL_KEY].orEmpty(),
-            position = this[POSITION_KEY].orEmpty()
+            position = this[POSITION_KEY].orEmpty(),
+            favoriteLessonTime = this[FAVORITE_LESSON_TIME_KEY].orEmpty()
         )
     }
 
@@ -50,5 +52,6 @@ class UserProfileDataStoreRepository(
         val AVATAR_URI_KEY = stringPreferencesKey("avatar_uri")
         val RESUME_URL_KEY = stringPreferencesKey("resume_url")
         val POSITION_KEY = stringPreferencesKey("position")
+        val FAVORITE_LESSON_TIME_KEY = stringPreferencesKey("favorite_lesson_time")
     }
 }

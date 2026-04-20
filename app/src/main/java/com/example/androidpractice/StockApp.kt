@@ -175,6 +175,7 @@ fun StockApp() {
                     onFullNameChange = profileViewModel::onFullNameChange,
                     onPositionChange = profileViewModel::onPositionChange,
                     onResumeUrlChange = profileViewModel::onResumeUrlChange,
+                    onFavoriteLessonTimeChange = profileViewModel::onFavoriteLessonTimeChange,
                     onAvatarUriChange = profileViewModel::onAvatarUriChange,
                     onDoneClick = {
                         val saved = profileViewModel.saveProfile()

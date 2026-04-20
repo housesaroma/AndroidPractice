@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">AndroidPractice</string>
+    <string name="favorite_lesson_channel_name">Favorite lesson reminders</string>
+    <string name="favorite_lesson_channel_description">Notifications before your favorite lesson starts</string>
+    <string name="favorite_lesson_notification_title">Favorite lesson is starting</string>
+    <string name="favorite_lesson_notification_body">%1$s has a favorite lesson right now</string>
+    <string name="profile_owner_fallback">Profile owner</string>
 </resources>
