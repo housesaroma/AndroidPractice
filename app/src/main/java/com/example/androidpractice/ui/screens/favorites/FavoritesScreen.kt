@@ -30,9 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.androidpractice.domain.model.FavoriteStock
+import com.example.androidpractice.ui.model.FavoriteStockItemUiModel
+import com.example.androidpractice.ui.model.StockChangeTrend
 import com.example.androidpractice.ui.viewmodel.FavoritesUiState
-import java.util.Locale
 
 private val UpGreen = Color(0xFF137333)
 private val DownRed = Color(0xFFB3261E)
@@ -75,12 +75,12 @@ fun FavoritesScreen(
 
 @Composable
 private fun FavoriteRow(
-    stock: FavoriteStock,
+    stock: FavoriteStockItemUiModel,
     onRemove: () -> Unit
 ) {
     val changeColor = when {
-        (stock.change ?: 0.0) > 0 -> UpGreen
-        (stock.change ?: 0.0) < 0 -> DownRed
+        stock.changeTrend == StockChangeTrend.UP -> UpGreen
+        stock.changeTrend == StockChangeTrend.DOWN -> DownRed
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
@@ -121,7 +121,7 @@ private fun FavoriteRow(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = formatChange(stock.change, stock.changePercent),
+                    text = stock.changeText,
                     style = MaterialTheme.typography.bodySmall,
                     color = changeColor
                 )
@@ -129,7 +129,7 @@ private fun FavoriteRow(
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = formatPrice(stock.price, stock.currency),
+                    text = stock.priceText,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium
                 )
@@ -176,14 +176,4 @@ private fun EmptyState(modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
-}
-
-private fun formatPrice(price: Double?, currency: String): String {
-    if (price == null) return "--"
-    return String.format(Locale.US, "%.2f %s", price, currency)
-}
-
-private fun formatChange(change: Double?, changePercent: Double?): String {
-    if (change == null || changePercent == null) return "--"
-    return String.format(Locale.US, "%+.2f (%.2f%%)", change, changePercent)
 }

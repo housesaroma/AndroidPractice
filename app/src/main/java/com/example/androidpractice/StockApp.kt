@@ -37,29 +37,37 @@ import com.example.androidpractice.ui.screens.placeholder.PlaceholderScreen
 import com.example.androidpractice.ui.screens.profile.ProfileScreen
 import com.example.androidpractice.ui.screens.profile.edit.EditProfileScreen
 import com.example.androidpractice.ui.screens.settings.SettingsScreen
+import com.example.androidpractice.ui.viewmodel.EditProfileViewModel
+import com.example.androidpractice.ui.viewmodel.FavoritesViewModel
 import com.example.androidpractice.ui.viewmodel.ProfileEvent
 import com.example.androidpractice.ui.viewmodel.ProfileViewModel
+import com.example.androidpractice.ui.viewmodel.SettingsViewModel
+import com.example.androidpractice.ui.viewmodel.StockDetailViewModel
+import com.example.androidpractice.ui.viewmodel.StockListViewModel
 import com.example.androidpractice.ui.viewmodel.StockDetailsUiState
-import com.example.androidpractice.ui.viewmodel.StocksViewModel
 
 @Composable
 fun StockApp() {
     val navController = rememberNavController()
-    val stocksViewModel: StocksViewModel = viewModel(factory = StocksViewModel.factory())
+    val stockListViewModel: StockListViewModel = viewModel(factory = StockListViewModel.factory())
+    val stockDetailViewModel: StockDetailViewModel = viewModel(factory = StockDetailViewModel.factory())
+    val favoritesViewModel: FavoritesViewModel = viewModel(factory = FavoritesViewModel.factory())
+    val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory())
     val profileViewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.factory())
+    val editProfileViewModel: EditProfileViewModel = viewModel(factory = EditProfileViewModel.factory())
     val context = LocalContext.current
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val stocksUiState by stocksViewModel.stocksUiState.collectAsStateWithLifecycle()
-    val stockDetailsUiState by stocksViewModel.stockDetailsUiState.collectAsStateWithLifecycle()
-    val settingsUiState by stocksViewModel.settingsUiState.collectAsStateWithLifecycle()
-    val favoritesUiState by stocksViewModel.favoritesUiState.collectAsStateWithLifecycle()
-    val showSettingsBadge by stocksViewModel.showSettingsBadge.collectAsStateWithLifecycle()
+    val stocksUiState by stockListViewModel.uiState.collectAsStateWithLifecycle()
+    val stockDetailsUiState by stockDetailViewModel.uiState.collectAsStateWithLifecycle()
+    val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
+    val favoritesUiState by favoritesViewModel.uiState.collectAsStateWithLifecycle()
+    val showSettingsBadge by settingsViewModel.showSettingsBadge.collectAsStateWithLifecycle()
 
     val profileUiState by profileViewModel.profileUiState.collectAsStateWithLifecycle()
-    val editProfileUiState by profileViewModel.editUiState.collectAsStateWithLifecycle()
+    val editProfileUiState by editProfileViewModel.uiState.collectAsStateWithLifecycle()
 
     val bottomItems = listOf(
         BottomNavItem.Stocks,
@@ -120,30 +128,30 @@ fun StockApp() {
             composable(Screen.Stocks.route) {
                 StockListScreen(
                     uiState = stocksUiState,
-                    onRetry = stocksViewModel::retryStocks,
+                    onRetry = stockListViewModel::retryStocks,
                     onStockClick = { symbol ->
                         navController.navigate(Screen.StockDetail.createRoute(symbol))
                     },
-                    onToggleFavorite = stocksViewModel::toggleFavoriteFromQuote
+                    onToggleFavorite = stockListViewModel::toggleFavorite
                 )
             }
 
             composable(Screen.Favorites.route) {
                 FavoritesScreen(
                     uiState = favoritesUiState,
-                    onRemoveFavorite = stocksViewModel::removeFavorite
+                    onRemoveFavorite = favoritesViewModel::removeFavorite
                 )
             }
 
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     uiState = settingsUiState,
-                    onQueryChange = stocksViewModel::onSettingsSearchQueryChange,
-                    onRangePointChange = stocksViewModel::onSettingsRangePointChange,
-                    onOnlyRisingChange = stocksViewModel::onSettingsOnlyRisingChange,
-                    onResetFilters = stocksViewModel::resetFilters,
+                    onQueryChange = settingsViewModel::onSettingsSearchQueryChange,
+                    onRangePointChange = settingsViewModel::onSettingsRangePointChange,
+                    onOnlyRisingChange = settingsViewModel::onSettingsOnlyRisingChange,
+                    onResetFilters = settingsViewModel::resetFilters,
                     onDone = {
-                        val success = stocksViewModel.onSettingsDone()
+                        val success = settingsViewModel.onSettingsDone()
                         if (success) {
                             navController.navigate(Screen.Stocks.route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
@@ -167,17 +175,19 @@ fun StockApp() {
 
             composable(Screen.EditProfile.route) {
                 LaunchedEffect(Unit) {
-                    profileViewModel.startEditing()
+                    editProfileViewModel.startEditing()
                 }
                 EditProfileScreen(
                     uiState = editProfileUiState,
                     onBackClick = { navController.popBackStack() },
-                    onFullNameChange = profileViewModel::onFullNameChange,
-                    onPositionChange = profileViewModel::onPositionChange,
-                    onResumeUrlChange = profileViewModel::onResumeUrlChange,
-                    onAvatarUriChange = profileViewModel::onAvatarUriChange,
+                    onFullNameChange = editProfileViewModel::onFullNameChange,
+                    onPositionChange = editProfileViewModel::onPositionChange,
+                    onResumeUrlChange = editProfileViewModel::onResumeUrlChange,
+                    onFavoriteLessonTimeChange = editProfileViewModel::onFavoriteLessonTimeChange,
+                    onFavoriteLessonTimeSelected = editProfileViewModel::onFavoriteLessonTimeSelected,
+                    onAvatarUriChange = editProfileViewModel::onAvatarUriChange,
                     onDoneClick = {
-                        val saved = profileViewModel.saveProfile()
+                        val saved = editProfileViewModel.saveProfile()
                         if (saved) {
                             navController.popBackStack()
                         }
@@ -198,7 +208,7 @@ fun StockApp() {
                     )
                 } else {
                     LaunchedEffect(symbol) {
-                        stocksViewModel.loadStockDetails(symbol = symbol)
+                        stockDetailViewModel.loadStockDetails(symbol = symbol)
                     }
                     val detailUiState = if (
                         stockDetailsUiState.symbol != symbol &&
@@ -211,8 +221,8 @@ fun StockApp() {
                     StockDetailScreen(
                         uiState = detailUiState,
                         onBack = { navController.popBackStack() },
-                        onRetry = stocksViewModel::retryStockDetails,
-                        onToggleFavorite = stocksViewModel::toggleFavoriteFromDetails
+                        onRetry = stockDetailViewModel::retryStockDetails,
+                        onToggleFavorite = stockDetailViewModel::toggleFavorite
                     )
                 }
             }

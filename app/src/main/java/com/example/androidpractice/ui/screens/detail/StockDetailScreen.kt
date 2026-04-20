@@ -36,9 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
-import com.example.androidpractice.domain.model.StockDetails
+import com.example.androidpractice.ui.model.StockChangeTrend
+import com.example.androidpractice.ui.model.StockDetailsUiModel
 import com.example.androidpractice.ui.viewmodel.StockDetailsUiState
-import java.util.Locale
 
 private val UpGreen = Color(0xFF137333)
 private val DownRed = Color(0xFFB3261E)
@@ -120,7 +120,7 @@ fun StockDetailScreen(
 
 @Composable
 private fun StockContent(
-    stock: StockDetails,
+    stock: StockDetailsUiModel,
     errorMessage: String?,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier
@@ -143,10 +143,10 @@ private fun StockContent(
 }
 
 @Composable
-private fun StockHeader(stock: StockDetails) {
+private fun StockHeader(stock: StockDetailsUiModel) {
     val changeColor = when {
-        (stock.change ?: 0.0) > 0 -> UpGreen
-        (stock.change ?: 0.0) < 0 -> DownRed
+        stock.changeTrend == StockChangeTrend.UP -> UpGreen
+        stock.changeTrend == StockChangeTrend.DOWN -> DownRed
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
@@ -180,7 +180,7 @@ private fun StockHeader(stock: StockDetails) {
                 }
             )
             Text(
-                text = formatPrice(stock.price, stock.currency),
+                text = stock.priceText,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.constrainAs(price) {
@@ -189,7 +189,7 @@ private fun StockHeader(stock: StockDetails) {
                 }
             )
             Text(
-                text = formatChange(stock.change, stock.changePercent),
+                text = stock.changeText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = changeColor,
                 modifier = Modifier.constrainAs(change) {
@@ -198,7 +198,7 @@ private fun StockHeader(stock: StockDetails) {
                 }
             )
             Text(
-                text = "${stock.exchange} • ${stock.currency}",
+                text = stock.exchangeCurrencyText,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.constrainAs(exchange) {
@@ -211,7 +211,7 @@ private fun StockHeader(stock: StockDetails) {
 }
 
 @Composable
-private fun TradingStatsCard(stock: StockDetails) {
+private fun TradingStatsCard(stock: StockDetailsUiModel) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -223,19 +223,19 @@ private fun TradingStatsCard(stock: StockDetails) {
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.size(12.dp))
-            StatRow(label = "Day range", value = formatRange(stock.dayLow, stock.dayHigh))
-            StatRow(label = "52w range", value = formatRange(stock.week52Low, stock.week52High))
-            StatRow(label = "Volume", value = formatNumber(stock.volume))
-            StatRow(label = "Market cap", value = formatMarketCap(stock.marketCap))
-            StatRow(label = "P/E ratio", value = formatDecimal(stock.peRatio))
-            StatRow(label = "EPS", value = formatDecimal(stock.eps))
-            StatRow(label = "Dividend yield", value = formatPercent(stock.dividendYield))
+            StatRow(label = "Day range", value = stock.dayRangeText)
+            StatRow(label = "52w range", value = stock.week52RangeText)
+            StatRow(label = "Volume", value = stock.volumeText)
+            StatRow(label = "Market cap", value = stock.marketCapText)
+            StatRow(label = "P/E ratio", value = stock.peRatioText)
+            StatRow(label = "EPS", value = stock.epsText)
+            StatRow(label = "Dividend yield", value = stock.dividendYieldText)
         }
     }
 }
 
 @Composable
-private fun CompanyCard(stock: StockDetails) {
+private fun CompanyCard(stock: StockDetailsUiModel) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -358,41 +358,4 @@ private fun ErrorBanner(
             Text("Retry")
         }
     }
-}
-
-private fun formatPrice(price: Double?, currency: String): String {
-    if (price == null) return "--"
-    return String.format(Locale.US, "%.2f %s", price, currency)
-}
-
-private fun formatChange(change: Double?, changePercent: Double?): String {
-    if (change == null || changePercent == null) return "--"
-    return String.format(Locale.US, "%+.2f (%.2f%%)", change, changePercent)
-}
-
-private fun formatDecimal(value: Double?): String {
-    return value?.let { String.format(Locale.US, "%.2f", it) } ?: "--"
-}
-
-private fun formatRange(low: Double?, high: Double?): String {
-    if (low == null || high == null) return "--"
-    return String.format(Locale.US, "%.2f - %.2f", low, high)
-}
-
-private fun formatNumber(value: Long?): String {
-    return value?.let { String.format(Locale.US, "%,d", it) } ?: "--"
-}
-
-private fun formatMarketCap(value: Long?): String {
-    if (value == null) return "--"
-    return when {
-        value >= 1_000_000_000_000L -> String.format(Locale.US, "%.2f T", value / 1_000_000_000_000.0)
-        value >= 1_000_000_000L -> String.format(Locale.US, "%.2f B", value / 1_000_000_000.0)
-        value >= 1_000_000L -> String.format(Locale.US, "%.2f M", value / 1_000_000.0)
-        else -> value.toString()
-    }
-}
-
-private fun formatPercent(value: Double?): String {
-    return value?.let { String.format(Locale.US, "%.2f%%", it) } ?: "--"
 }

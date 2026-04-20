@@ -1,6 +1,7 @@
 package com.example.androidpractice.ui.screens.profile.edit
 
 import android.Manifest
+import android.app.TimePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -23,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +53,7 @@ import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.example.androidpractice.ui.viewmodel.EditProfileUiState
 import java.io.File
+import java.util.Calendar
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,6 +63,8 @@ fun EditProfileScreen(
     onFullNameChange: (String) -> Unit,
     onPositionChange: (String) -> Unit,
     onResumeUrlChange: (String) -> Unit,
+    onFavoriteLessonTimeChange: (String) -> Unit,
+    onFavoriteLessonTimeSelected: (Int, Int) -> Unit,
     onAvatarUriChange: (String?) -> Unit,
     onDoneClick: () -> Unit,
     onStoragePermissionDenied: () -> Unit
@@ -111,9 +116,21 @@ fun EditProfileScreen(
         }
     }
 
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+
     LaunchedEffect(storagePermissions) {
         if (storagePermissions.isNotEmpty() && !context.hasAnyPermission(storagePermissions)) {
             storagePermissionLauncher.launch(storagePermissions.toTypedArray())
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !context.hasPermission(Manifest.permission.POST_NOTIFICATIONS)
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
@@ -162,6 +179,37 @@ fun EditProfileScreen(
                 singleLine = true
             )
 
+            OutlinedTextField(
+                value = uiState.favoriteLessonTime,
+                onValueChange = onFavoriteLessonTimeChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Favorite lesson time") },
+                placeholder = { Text("HH:mm") },
+                singleLine = true,
+                isError = uiState.favoriteLessonTimeError != null,
+                trailingIcon = {
+                    IconButton(
+                        onClick = {
+                            showTimePicker(
+                                context = context,
+                                currentTime = uiState.favoriteLessonTime,
+                                onTimeSelected = onFavoriteLessonTimeSelected
+                            )
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AccessTime,
+                            contentDescription = "Pick time"
+                        )
+                    }
+                },
+                supportingText = {
+                    uiState.favoriteLessonTimeError?.let { errorText ->
+                        Text(text = errorText, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            )
+
             if (uiState.errorMessage != null) {
                 Text(
                     text = uiState.errorMessage,
@@ -178,7 +226,10 @@ fun EditProfileScreen(
                     Text("Cancel")
                 }
                 Spacer(modifier = Modifier.size(8.dp))
-                Button(onClick = onDoneClick) {
+                Button(
+                    onClick = onDoneClick,
+                    enabled = uiState.isSaveEnabled
+                ) {
                     Text("Done")
                 }
             }
@@ -296,4 +347,40 @@ private fun createTemporaryImageUri(context: Context): Uri? {
         val file = File(directory, "avatar_${System.currentTimeMillis()}.jpg")
         FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }.getOrNull()
+}
+
+private fun showTimePicker(
+    context: Context,
+    currentTime: String,
+    onTimeSelected: (Int, Int) -> Unit
+) {
+    val now = Calendar.getInstance()
+    val parsedTime = parseTimeOrNull(currentTime)
+    val initialHour = parsedTime?.first ?: now.get(Calendar.HOUR_OF_DAY)
+    val initialMinute = parsedTime?.second ?: now.get(Calendar.MINUTE)
+
+    TimePickerDialog(
+        context,
+        { _, selectedHour, selectedMinute ->
+            onTimeSelected(selectedHour, selectedMinute)
+        },
+        initialHour,
+        initialMinute,
+        true
+    ).show()
+}
+
+private fun parseTimeOrNull(value: String): Pair<Int, Int>? {
+    val parts = value.split(":")
+    if (parts.size != 2) {
+        return null
+    }
+
+    val hour = parts[0].toIntOrNull() ?: return null
+    val minute = parts[1].toIntOrNull() ?: return null
+    if (hour !in 0..23 || minute !in 0..59) {
+        return null
+    }
+
+    return hour to minute
 }
