@@ -1,6 +1,5 @@
-package com.example.androidpractice.ui.screens.list
+package com.example.androidpractice.ui.screens.favorites
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -23,20 +21,17 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.androidpractice.domain.model.StockFilters
-import com.example.androidpractice.domain.model.StockQuote
-import com.example.androidpractice.ui.viewmodel.StocksUiState
+import com.example.androidpractice.domain.model.FavoriteStock
+import com.example.androidpractice.ui.viewmodel.FavoritesUiState
 import java.util.Locale
 
 private val UpGreen = Color(0xFF137333)
@@ -44,42 +39,19 @@ private val DownRed = Color(0xFFB3261E)
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-fun StockListScreen(
-    uiState: StocksUiState,
-    onRetry: () -> Unit,
-    onStockClick: (String) -> Unit,
-    onToggleFavorite: (StockQuote) -> Unit
+fun FavoritesScreen(
+    uiState: FavoritesUiState,
+    onRemoveFavorite: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        CenterAlignedTopAppBar(title = { Text(text = "Alpha Vantage") })
-
-        FiltersSummary(filters = uiState.activeFilters)
-
-        if (uiState.isLoading && uiState.stocks.isNotEmpty()) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
-
-        if (uiState.errorMessage != null && uiState.stocks.isNotEmpty()) {
-            ErrorBanner(
-                message = uiState.errorMessage,
-                onRetry = onRetry
-            )
-        }
+        CenterAlignedTopAppBar(title = { Text(text = "Favorites") })
 
         when {
-            uiState.isLoading && uiState.stocks.isEmpty() -> {
+            uiState.isLoading -> {
                 LoadingState(modifier = Modifier.fillMaxSize())
             }
 
-            uiState.errorMessage != null && uiState.stocks.isEmpty() -> {
-                ErrorState(
-                    message = uiState.errorMessage,
-                    onRetry = onRetry,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-            uiState.stocks.isEmpty() -> {
+            uiState.favorites.isEmpty() -> {
                 EmptyState(modifier = Modifier.fillMaxSize())
             }
 
@@ -89,12 +61,10 @@ fun StockListScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(16.dp)
                 ) {
-                    items(uiState.stocks, key = { it.symbol }) { stock ->
-                        StockRow(
+                    items(uiState.favorites, key = { it.symbol }) { stock ->
+                        FavoriteRow(
                             stock = stock,
-                            isFavorite = uiState.favoriteSymbols.contains(stock.symbol),
-                            onClick = { onStockClick(stock.symbol) },
-                            onFavoriteClick = { onToggleFavorite(stock) }
+                            onRemove = { onRemoveFavorite(stock.symbol) }
                         )
                     }
                 }
@@ -104,37 +74,9 @@ fun StockListScreen(
 }
 
 @Composable
-private fun FiltersSummary(filters: StockFilters) {
-    val summary = buildString {
-        if (filters.searchQuery.isNotBlank()) {
-            append("Query: ${filters.searchQuery}")
-        }
-        if (filters.rangePoint != null) {
-            if (isNotEmpty()) append("  |  ")
-            append("52w point: ${formatNumber(filters.rangePoint)}")
-        }
-        if (filters.onlyRising) {
-            if (isNotEmpty()) append("  |  ")
-            append("Only rising")
-        }
-    }
-
-    if (summary.isNotBlank()) {
-        Text(
-            text = summary,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun StockRow(
-    stock: StockQuote,
-    isFavorite: Boolean,
-    onClick: () -> Unit,
-    onFavoriteClick: () -> Unit
+private fun FavoriteRow(
+    stock: FavoriteStock,
+    onRemove: () -> Unit
 ) {
     val changeColor = when {
         (stock.change ?: 0.0) > 0 -> UpGreen
@@ -143,9 +85,7 @@ private fun StockRow(
     }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
@@ -179,24 +119,25 @@ private fun StockRow(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = formatChange(stock.change, stock.changePercent),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = changeColor
+                )
             }
+
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = formatPrice(stock.price, stock.currency),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = formatChange(stock.change, stock.changePercent),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = changeColor
-                )
-                IconButton(onClick = onFavoriteClick) {
+                IconButton(onClick = onRemove) {
                     Icon(
-                        imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                        contentDescription = if (isFavorite) "Remove favorite" else "Add favorite",
-                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = "Remove favorite",
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -213,53 +154,7 @@ private fun LoadingState(modifier: Modifier = Modifier) {
     ) {
         CircularProgressIndicator()
         Spacer(modifier = Modifier.height(12.dp))
-        Text("Loading stocks...")
-    }
-}
-
-@Composable
-private fun ErrorState(
-    message: String,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.error
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        TextButton(onClick = onRetry) {
-            Text("Retry")
-        }
-    }
-}
-
-@Composable
-private fun ErrorBanner(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.weight(1f)
-        )
-        TextButton(onClick = onRetry) {
-            Text("Retry")
-        }
+        Text("Loading favorites...")
     }
 }
 
@@ -271,8 +166,14 @@ private fun EmptyState(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "No stocks match current filters",
+            text = "No favorites yet",
             style = MaterialTheme.typography.bodyLarge
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Add items from the list or details screen",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -285,12 +186,4 @@ private fun formatPrice(price: Double?, currency: String): String {
 private fun formatChange(change: Double?, changePercent: Double?): String {
     if (change == null || changePercent == null) return "--"
     return String.format(Locale.US, "%+.2f (%.2f%%)", change, changePercent)
-}
-
-private fun formatNumber(value: Double): String {
-    return if (value % 1.0 == 0.0) {
-        value.toLong().toString()
-    } else {
-        String.format(Locale.US, "%.2f", value)
-    }
 }

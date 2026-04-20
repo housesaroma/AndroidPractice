@@ -4,9 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Screen(val route: String) {
     data object Stocks : Screen("stocks")
@@ -19,36 +17,24 @@ sealed class Screen(val route: String) {
     }
 }
 
-sealed class BottomNavItem(
+enum class BottomNavItem(
     val screen: Screen,
-    private val label: String,
-    private val icon: @Composable () -> Unit
+    val label: String,
+    val icon: ImageVector
 ) {
-    data object Stocks : BottomNavItem(
+    Stocks(
         screen = Screen.Stocks,
         label = "Stocks",
-        icon = { Icon(imageVector = Icons.AutoMirrored.Filled.ShowChart, contentDescription = null) }
-    )
-
-    data object Portfolio : BottomNavItem(
+        icon = Icons.AutoMirrored.Filled.ShowChart
+    ),
+    Portfolio(
         screen = Screen.Portfolio,
         label = "Portfolio",
-        icon = { Icon(imageVector = Icons.Filled.AccountBalanceWallet, contentDescription = null) }
-    )
-
-    data object Settings : BottomNavItem(
+        icon = Icons.Filled.AccountBalanceWallet
+    ),
+    Settings(
         screen = Screen.Settings,
         label = "Settings",
-        icon = { Icon(imageVector = Icons.Filled.Settings, contentDescription = null) }
+        icon = Icons.Filled.Settings
     )
-
-    @Composable
-    fun Label() {
-        Text(text = label)
-    }
-
-    @Composable
-    fun Icon() {
-        icon()
-    }
 }

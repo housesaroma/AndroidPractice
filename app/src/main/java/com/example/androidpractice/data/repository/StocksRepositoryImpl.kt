@@ -2,10 +2,11 @@ package com.example.androidpractice.data.repository
 
 import com.example.androidpractice.data.remote.AlphaVantageApi
 import com.example.androidpractice.data.remote.dto.GlobalQuoteDto
-import com.example.androidpractice.data.remote.dto.GlobalQuoteResponseDto
 import com.example.androidpractice.data.remote.dto.OverviewResponseDto
 import com.example.androidpractice.data.remote.dto.SymbolMatchDto
 import com.example.androidpractice.data.remote.dto.SymbolSearchResponseDto
+import com.example.androidpractice.data.remote.dto.TopMoverItemDto
+import com.example.androidpractice.data.remote.dto.TopMoversResponseDto
 import com.example.androidpractice.domain.model.StockDetails
 import com.example.androidpractice.domain.model.StockQuote
 import com.example.androidpractice.domain.repository.StocksRepository
@@ -19,18 +20,22 @@ class StocksRepositoryImpl(
     private val apiKey: String
 ) : StocksRepository {
 
-    override suspend fun getStocksBySymbols(symbols: List<String>): List<StockQuote> = coroutineScope {
-        val stocks = symbols.map { symbol ->
-            async {
-                runCatching { fetchQuote(symbol) }.getOrNull()
-            }
-        }.awaitAll().filterNotNull()
+    override suspend fun getDefaultStocks(): List<StockQuote> {
+        val response = api.getTopGainersLosers(apiKey = apiKey)
+        response.throwIfApiError()
 
-        if (stocks.isEmpty()) {
-            throw IllegalStateException("Could not load stocks. Check API key, limits, or internet connection.")
+        val defaultList = response.mostActivelyTraded
+            .orEmpty()
+            .ifEmpty { response.topGainers.orEmpty() }
+            .ifEmpty { response.topLosers.orEmpty() }
+            .mapNotNull { it.toDomainQuote() }
+            .take(MAX_DEFAULT_RESULTS)
+
+        if (defaultList.isEmpty()) {
+            throw IllegalStateException("Could not load stocks list. Check API key, limits, or internet connection.")
         }
 
-        stocks
+        return defaultList
     }
 
     override suspend fun searchStocks(query: String): List<StockQuote> = coroutineScope {
@@ -71,26 +76,6 @@ class StocksRepositoryImpl(
         return overview.toDomain(quoteDto, normalized)
     }
 
-    private suspend fun fetchQuote(symbol: String): StockQuote? {
-        val normalized = symbol.trim().uppercase(Locale.US)
-        val response = api.getGlobalQuote(symbol = normalized, apiKey = apiKey)
-
-        if (response.quote?.symbol.cleanValue().isNullOrBlank()) {
-            return null
-        }
-
-        val quote = response.quote
-        return StockQuote(
-            symbol = quote?.symbol.cleanValue() ?: normalized,
-            name = FALLBACK_NAMES[normalized] ?: normalized,
-            exchange = FALLBACK_EXCHANGES[normalized] ?: "Unknown",
-            currency = "USD",
-            price = quote?.price.toDoubleSafe(),
-            change = quote?.change.toDoubleSafe(),
-            changePercent = quote?.changePercent.toPercentDouble()
-        )
-    }
-
     private fun SymbolMatchDto.toDomainQuote(): StockQuote {
         val symbolValue = symbol.cleanValue().orEmpty()
         return StockQuote(
@@ -100,7 +85,24 @@ class StocksRepositoryImpl(
             currency = currency.cleanValue() ?: "USD",
             price = null,
             change = null,
-            changePercent = null
+            changePercent = null,
+            week52High = null,
+            week52Low = null
+        )
+    }
+
+    private fun TopMoverItemDto.toDomainQuote(): StockQuote? {
+        val resolvedSymbol = ticker.cleanValue() ?: symbol.cleanValue() ?: return null
+        return StockQuote(
+            symbol = resolvedSymbol.uppercase(Locale.US),
+            name = resolvedSymbol.uppercase(Locale.US),
+            exchange = "US Market",
+            currency = "USD",
+            price = price.toDoubleSafe(),
+            change = changeAmount.toDoubleSafe(),
+            changePercent = changePercentage.toPercentDouble(),
+            week52High = null,
+            week52Low = null
         )
     }
 
@@ -131,6 +133,13 @@ class StocksRepositoryImpl(
     }
 
     private fun SymbolSearchResponseDto.throwIfApiError() {
+        val apiError = errorMessage.cleanValue() ?: information.cleanValue() ?: note.cleanValue()
+        if (apiError != null) {
+            throw IllegalStateException(apiError)
+        }
+    }
+
+    private fun TopMoversResponseDto.throwIfApiError() {
         val apiError = errorMessage.cleanValue() ?: information.cleanValue() ?: note.cleanValue()
         if (apiError != null) {
             throw IllegalStateException(apiError)
@@ -169,27 +178,6 @@ class StocksRepositoryImpl(
 
     private companion object {
         const val MAX_SEARCH_RESULTS = 8
-
-        val FALLBACK_NAMES = mapOf(
-            "AAPL" to "Apple Inc.",
-            "MSFT" to "Microsoft Corporation",
-            "NVDA" to "NVIDIA Corporation",
-            "AMZN" to "Amazon.com, Inc.",
-            "GOOGL" to "Alphabet Inc.",
-            "TSLA" to "Tesla, Inc.",
-            "JPM" to "JPMorgan Chase & Co.",
-            "KO" to "The Coca-Cola Company"
-        )
-
-        val FALLBACK_EXCHANGES = mapOf(
-            "AAPL" to "NASDAQ",
-            "MSFT" to "NASDAQ",
-            "NVDA" to "NASDAQ",
-            "AMZN" to "NASDAQ",
-            "GOOGL" to "NASDAQ",
-            "TSLA" to "NASDAQ",
-            "JPM" to "NYSE",
-            "KO" to "NYSE"
-        )
+        const val MAX_DEFAULT_RESULTS = 20
     }
 }

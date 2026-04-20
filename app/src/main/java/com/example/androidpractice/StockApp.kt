@@ -2,9 +2,13 @@ package com.example.androidpractice
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,8 +25,10 @@ import androidx.navigation.navArgument
 import com.example.androidpractice.ui.navigation.BottomNavItem
 import com.example.androidpractice.ui.navigation.Screen
 import com.example.androidpractice.ui.screens.detail.StockDetailScreen
+import com.example.androidpractice.ui.screens.favorites.FavoritesScreen
 import com.example.androidpractice.ui.screens.list.StockListScreen
 import com.example.androidpractice.ui.screens.placeholder.PlaceholderScreen
+import com.example.androidpractice.ui.screens.settings.SettingsScreen
 import com.example.androidpractice.ui.viewmodel.StockDetailsUiState
 import com.example.androidpractice.ui.viewmodel.StocksViewModel
 
@@ -36,6 +42,9 @@ fun StockApp() {
 
     val stocksUiState by viewModel.stocksUiState.collectAsStateWithLifecycle()
     val stockDetailsUiState by viewModel.stockDetailsUiState.collectAsStateWithLifecycle()
+    val settingsUiState by viewModel.settingsUiState.collectAsStateWithLifecycle()
+    val favoritesUiState by viewModel.favoritesUiState.collectAsStateWithLifecycle()
+    val showSettingsBadge by viewModel.showSettingsBadge.collectAsStateWithLifecycle()
 
     val bottomItems = listOf(
         BottomNavItem.Stocks,
@@ -62,8 +71,16 @@ fun StockApp() {
                                     restoreState = true
                                 }
                             },
-                            icon = { item.Icon() },
-                            label = { item.Label() }
+                            icon = {
+                                if (item == BottomNavItem.Settings && showSettingsBadge) {
+                                    BadgedBox(badge = { Badge() }) {
+                                        Icon(imageVector = item.icon, contentDescription = item.label)
+                                    }
+                                } else {
+                                    Icon(imageVector = item.icon, contentDescription = item.label)
+                                }
+                            },
+                            label = { Text(text = item.label) }
                         )
                     }
                 }
@@ -78,27 +95,40 @@ fun StockApp() {
             composable(Screen.Stocks.route) {
                 StockListScreen(
                     uiState = stocksUiState,
-                    onQueryChange = viewModel::onSearchQueryChange,
-                    onSearchSubmit = viewModel::submitSearch,
-                    onClearSearch = viewModel::clearSearchAndReload,
                     onRetry = viewModel::retryStocks,
                     onStockClick = { symbol ->
                         navController.navigate(Screen.StockDetail.createRoute(symbol))
-                    }
+                    },
+                    onToggleFavorite = viewModel::toggleFavoriteFromQuote
                 )
             }
 
             composable(Screen.Portfolio.route) {
-                PlaceholderScreen(
-                    title = "Portfolio",
-                    description = "Placeholder for the next practices."
+                FavoritesScreen(
+                    uiState = favoritesUiState,
+                    onRemoveFavorite = viewModel::removeFavorite
                 )
             }
 
             composable(Screen.Settings.route) {
-                PlaceholderScreen(
-                    title = "Settings",
-                    description = "Placeholder for the next practices."
+                SettingsScreen(
+                    uiState = settingsUiState,
+                    onQueryChange = viewModel::onSettingsSearchQueryChange,
+                    onRangePointChange = viewModel::onSettingsRangePointChange,
+                    onOnlyRisingChange = viewModel::onSettingsOnlyRisingChange,
+                    onResetFilters = viewModel::resetFilters,
+                    onDone = {
+                        val success = viewModel.onSettingsDone()
+                        if (success) {
+                            navController.navigate(Screen.Stocks.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    }
                 )
             }
 
@@ -127,7 +157,8 @@ fun StockApp() {
                     StockDetailScreen(
                         uiState = detailUiState,
                         onBack = { navController.popBackStack() },
-                        onRetry = viewModel::retryStockDetails
+                        onRetry = viewModel::retryStockDetails,
+                        onToggleFavorite = viewModel::toggleFavoriteFromDetails
                     )
                 }
             }
