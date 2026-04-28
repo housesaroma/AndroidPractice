@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,9 +39,11 @@ import com.example.androidpractice.ui.screens.profile.ProfileScreen
 import com.example.androidpractice.ui.screens.profile.edit.EditProfileScreen
 import com.example.androidpractice.ui.screens.settings.SettingsScreen
 import com.example.androidpractice.ui.viewmodel.EditProfileViewModel
+import com.example.androidpractice.ui.viewmodel.EditProfileViewModelFactory
 import com.example.androidpractice.ui.viewmodel.FavoritesViewModel
 import com.example.androidpractice.ui.viewmodel.ProfileEvent
 import com.example.androidpractice.ui.viewmodel.ProfileViewModel
+import com.example.androidpractice.ui.viewmodel.ProfileViewModelFactory
 import com.example.androidpractice.ui.viewmodel.SettingsViewModel
 import com.example.androidpractice.ui.viewmodel.StockDetailViewModel
 import com.example.androidpractice.ui.viewmodel.StockListViewModel
@@ -53,8 +56,11 @@ fun StockApp() {
     val stockDetailViewModel: StockDetailViewModel = viewModel(factory = StockDetailViewModel.factory())
     val favoritesViewModel: FavoritesViewModel = viewModel(factory = FavoritesViewModel.factory())
     val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory())
-    val profileViewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.factory())
-    val editProfileViewModel: EditProfileViewModel = viewModel(factory = EditProfileViewModel.factory())
+    val appContext = LocalContext.current.applicationContext
+    val profileViewModelFactory = remember(appContext) { ProfileViewModelFactory(appContext) }
+    val editProfileViewModelFactory = remember(appContext) { EditProfileViewModelFactory(appContext) }
+    val profileViewModel: ProfileViewModel = viewModel(factory = profileViewModelFactory)
+    val editProfileViewModel: EditProfileViewModel = viewModel(factory = editProfileViewModelFactory)
     val context = LocalContext.current
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()

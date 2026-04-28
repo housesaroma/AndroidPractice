@@ -1,17 +1,11 @@
 package com.example.androidpractice.ui.viewmodel
 
-import android.app.Application
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.CreationExtras
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import com.example.androidpractice.data.di.AppContainer
 import com.example.androidpractice.domain.model.UserProfile
+import com.example.androidpractice.domain.notifications.FavoriteLessonReminderScheduler
 import com.example.androidpractice.domain.usecase.ObserveUserProfileUseCase
 import com.example.androidpractice.domain.usecase.SaveUserProfileUseCase
-import com.example.androidpractice.notifications.FavoriteLessonReminderScheduler
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -122,19 +116,6 @@ class EditProfileViewModel(
     }
 
     companion object {
-        fun factory(): ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                val application = this.requireApplication()
-                val repository = AppContainer.provideUserProfileRepository(application)
-
-                EditProfileViewModel(
-                    observeUserProfileUseCase = ObserveUserProfileUseCase(repository),
-                    saveUserProfileUseCase = SaveUserProfileUseCase(repository),
-                    favoriteLessonReminderScheduler = AppContainer.provideFavoriteLessonReminderScheduler(application)
-                )
-            }
-        }
-
         private fun validateFavoriteLessonTime(value: String): String? {
             val normalized = value.trim()
             if (normalized.isBlank()) {
@@ -148,12 +129,6 @@ class EditProfileViewModel(
 
         private fun formatFavoriteLessonTime(hour: Int, minute: Int): String {
             return String.format(Locale.US, "%02d:%02d", hour, minute)
-        }
-
-        private fun CreationExtras.requireApplication(): Application {
-            return checkNotNull(this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]) {
-                "Application is required to build EditProfileViewModel"
-            }
         }
 
         private val FAVORITE_LESSON_TIME_REGEX = Regex("^(?:[01]\\d|2[0-3]):[0-5]\\d$")

@@ -8,11 +8,11 @@ import java.util.Calendar
 
 class FavoriteLessonReminderScheduler(
     private val context: Context
-) {
+) : com.example.androidpractice.domain.notifications.FavoriteLessonReminderScheduler {
     private val alarmManager: AlarmManager =
         context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-    fun schedule(ownerName: String, favoriteLessonTime: String) {
+    override fun schedule(ownerName: String, favoriteLessonTime: String) {
         val triggerAtMillis = parseTimeToTodayMillis(favoriteLessonTime) ?: return
 
         val reminderIntent = Intent(context, FavoriteLessonReminderReceiver::class.java).apply {
