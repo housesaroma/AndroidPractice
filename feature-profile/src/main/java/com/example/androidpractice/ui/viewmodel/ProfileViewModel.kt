@@ -1,13 +1,7 @@
 package com.example.androidpractice.ui.viewmodel
 
-import android.app.Application
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.CreationExtras
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import com.example.androidpractice.data.di.AppContainer
 import com.example.androidpractice.domain.usecase.DownloadResumeUseCase
 import com.example.androidpractice.domain.usecase.ObserveUserProfileUseCase
 import kotlinx.coroutines.CoroutineDispatcher
@@ -65,27 +59,6 @@ class ProfileViewModel(
                 _events.emit(ProfileEvent.ShowMessage("Failed to download resume"))
             }
             _profileUiState.update { it.copy(isDownloadingResume = false) }
-        }
-    }
-
-    companion object {
-        fun factory(): ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                val application = this.requireApplication()
-                val repository = AppContainer.provideUserProfileRepository(application)
-                val downloader = AppContainer.provideResumeDownloader(application)
-
-                ProfileViewModel(
-                    observeUserProfileUseCase = ObserveUserProfileUseCase(repository),
-                    downloadResumeUseCase = DownloadResumeUseCase(downloader)
-                )
-            }
-        }
-
-        private fun CreationExtras.requireApplication(): Application {
-            return checkNotNull(this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]) {
-                "Application is required to build ProfileViewModel"
-            }
         }
     }
 }

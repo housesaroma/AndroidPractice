@@ -29,10 +29,12 @@ class UserProfileDataStoreRepository(
             preferences[POSITION_KEY] = profile.position
             preferences[FAVORITE_LESSON_TIME_KEY] = profile.favoriteLessonTime
 
-            if (profile.avatarUri.isNullOrBlank()) {
+            val avatarUri = profile.avatarUri
+
+            if (avatarUri.isNullOrBlank()) {
                 preferences.remove(AVATAR_URI_KEY)
             } else {
-                preferences[AVATAR_URI_KEY] = profile.avatarUri
+                preferences[AVATAR_URI_KEY] = avatarUri
             }
         }
     }

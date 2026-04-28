@@ -27,10 +27,11 @@ class StockFiltersDataStoreRepository(
     override suspend fun saveFilters(filters: StockFilters) {
         context.stockFiltersDataStore.edit { preferences ->
             preferences[SEARCH_QUERY_KEY] = filters.searchQuery
-            if (filters.rangePoint == null) {
+            val rangePoint = filters.rangePoint
+            if (rangePoint == null) {
                 preferences.remove(RANGE_POINT_KEY)
             } else {
-                preferences[RANGE_POINT_KEY] = filters.rangePoint
+                preferences[RANGE_POINT_KEY] = rangePoint
             }
             preferences[ONLY_RISING_KEY] = filters.onlyRising
         }
